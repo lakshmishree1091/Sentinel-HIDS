@@ -1,0 +1,11 @@
+# Machine state — never upload these
+logs/
+baseline/
+
+# Any local secrets or environment files
+*.conf.local
+.env
+*.log
+
+# OS junk
+.DS_Store
