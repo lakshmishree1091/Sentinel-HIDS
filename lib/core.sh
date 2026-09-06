@@ -150,6 +150,7 @@ hids::emit_finding() {
 
   # Build the finding with jq so every string is safely escaped.
   local json
+  local technique_name; technique_name="$(hids::mitre_name "$technique")"
   json="$(jq -c -n \
     --arg ts "$ts" \
     --arg host "$HIDS_HOSTNAME" \
@@ -158,12 +159,13 @@ hids::emit_finding() {
     --arg finding "$finding" \
     --arg description "$description" \
     --arg technique "$technique" \
+    --arg technique_name "$technique_name" \
     --arg tactic "$tactic" \
     --argjson deviation "$deviation" \
     --argjson details "$details" \
     '{timestamp:$ts, hostname:$host, module:$module, severity:$severity,
       finding:$finding, description:$description,
-      attack_technique:$technique, attack_tactic:$tactic,
+      attack_technique:$technique, attack_technique_name:$technique_name, attack_tactic:$tactic,
       baseline_deviation:$deviation, details:$details}')"
 
   # 1) Structured line for ELK ingestion.
@@ -181,10 +183,11 @@ hids::emit_finding() {
   # 2) Human-readable line in the operational log.
   printf '%s [%s] (%s) %s\n' "$ts" "${severity^^}" "$module" "$description" >> "$HIDS_LOG"
   # 3) Coloured terminal output so critical findings jump out during a run.
+  local mitre_tag=""; [[ -n "$technique" ]] && mitre_tag="  [$technique: $technique_name]"
   if [[ "$HIDS_COLOR" == "1" && -t 1 ]]; then
-    printf '%s[%s]\033[0m %-14s %s\n' "$(_hids::colour "$severity")" "${severity^^}" "$module" "$description"
+    printf '%s[%s]\033[0m %-14s %s%s\n' "$(_hids::colour "$severity")" "${severity^^}" "$module" "$description" "$mitre_tag"
   else
-    printf '[%s] %-14s %s\n' "${severity^^}" "$module" "$description"
+    printf '[%s] %-14s %s%s\n' "${severity^^}" "$module" "$description" "$mitre_tag"
   fi
 }
 
@@ -297,3 +300,10 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   echo "lib/core.sh is a library. Source it from a module; don't run it directly." >&2
   exit 1
 fi
+
+hids::mitre_name() {
+  local code="$1"
+  local db="$HIDS_HOME/data/mitre.json"
+  [[ -z "$code" || ! -f "$db" ]] && return 0
+  jq -r --arg c "$code" '.[$c].name // empty' "$db" 2>/dev/null
+}

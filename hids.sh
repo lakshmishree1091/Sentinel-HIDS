@@ -69,3 +69,6 @@ fi
 echo "Human log: $HIDS_LOG"
 echo "JSON log:  $HIDS_JSON_LOG"
 
+
+# Auto-ship this run's findings to Elastic Cloud (for the Kibana dashboard)
+[ -x "$HIDS_HOME/elastic_send.sh" ] && "$HIDS_HOME/elastic_send.sh" "$HIDS_JSON_LOG" sentinel-hids >> "$HIDS_LOG_DIR/elastic.log" 2>&1
